@@ -1,0 +1,407 @@
+<html>
+
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro" rel="stylesheet">
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({ tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]} });
+  </script>
+  <title>kenny</title>
+  <meta charset="UTF-8">
+  <style>
+    body,
+    html {
+      font-size: 62.5%
+    }
+
+    body {
+      line-height: 1;
+      font: 16px "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #666
+    }
+  </style>
+
+</head>
+
+<body>
+</script>
+<div class="post">
+  <title>Project 3 Face Morphing</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 194-26: Image Manipulation and Computational Photography</h1>
+<span class="date">Kenny Chen</span>
+
+<h2>Project 3: Face Morphing</h1>
+
+<div>
+
+<h3>Overview</h2>
+<p>
+  In this project I produced a "morph" animation of my face into other people's faces, computed
+  the mean of a population of faces, and extrapolated from a population mean to create a caricature of myself. 
+  I did this using affine transformations of triangles that were defined using a Delaunay triangulation on 
+  corresponding points on the two images being morphed. 
+</p>
+
+<h3>Defining Correspondences</h3>
+<p>To define correspondences, I wrote a function using <code>ginput</code>, taking in $n$ user points. 
+The main points I chose were those around the eyes, eyebrows, nose, ears, mouth, image corners, and several points 
+around the face. I chose these points in particular because I felt that choosing important features of the face would yield
+better results.</p>
+<div class="row">
+  <div class="column">
+    <img src="output/points.png" width="100%"/>
+  </div>
+  <div class="column">
+    <img src="output/points2.png" width="100%"/>
+  </div>
+</div>
+<figcaption>Correspondences</figcaption>
+<br>
+<p>
+  I then created a Delaunay triangulation of the two sets of points, both using the same triangulation.
+  I did this using the <code>Delaunay</code> function in the <code>scipy.spatial</code> library. 
+</p>
+<div class="row">
+  <div class="column">
+    <img src="output/correspondences.png" width="100%"/>
+  </div>
+  <div class="column">
+    <img src="output/correspondences2.png" width="100%"/>
+  </div>
+</div>
+<figcaption>Triangulation</figcaption>
+
+
+<h3>Computing the "Mid-way Face"</h3>
+<p>This part of the project was the hardest for me because I had a lot of trouble determining how to 
+  process pixels within a triangle at the same time rather than individually. Luckily, numpy and scipy 
+  functions came in handy. 
+</p>
+<br>
+<p>My process for finding the mid-way face started with finding the correspondences then 
+  finding the triangulation of both faces. I then calculated the mid-points of the two sets of correspondence points.
+  Then, for each triangle, I calculate the affine transformation matrix that maps from the mid-points to the original
+  points for each image. I did this using the algebraic method, inverting the original points and multiplying by the transformed 
+  points. 
+  <br><br>
+  I use the inverse warping technique next. I get all the points within the current triangle using the <code>skimage.draw.polygon</code> 
+  function. I then multiply the transformation matrix I found before with these points. I had trouble figuring out 
+  how to do this all at once, but I found that I could stack the $x$ and $y$ coordinates along with an array of 1's 
+  and call <code>np.dot(...)</code> on the transformation matrix and this stacked matrix to get all the transformed coordinates.
+  We round these transformed coordinate values to get the nearest 
+  coordinates and get all the pixel values in the original triangle based on the transformed coordinates and set all 
+  the new triangle pixels to these values.
+</p>
+<br>
+<p>We get the following:</p>
+<br>
+<div class="row">
+  <div class="column">
+    <img src="output/kenny_george/kenny_george0.jpg" width="100%"/>
+  </div>
+  <div class="column">
+    <img src="output/kenny_george/kenny_george23.jpg" width="100%"/>
+  </div>
+  <div class="column">
+    <img src="output/kenny_george/kenny_george45.jpg" width="100%"/>
+  </div>
+</div>
+
+<h3>The Morph Sequence</h3>
+<p>I implemented the complete morph by generalizing some of the functions I wrote for the Mid-Way Face.
+  For example, I generalized functions for calculating the midpoint of a set of points and the cross-dissolve of images.
+  Rather than just multiplying by 0.5, I interpolated based on the value of $t$. The following is the morph sequence 
+  from my face to George's.
+</p>
+<br>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VO15VXFrdTc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<br>
+<p>Another example of the late XXX-Tentacion's (Rest In Peace) face morphed into mine:</p>
+<br>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/UUtwpj2GtAw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<h3>The "Mean face" of a Population</h3>
+<img src="output/faces_avg/pop_avg.jpg" width="45%">
+<figcaption>Population average face</figcaption>
+<br>
+<p>I used the spatially normalized frontal images from the FEI Face Database, which is a database of Brazilian people's faces. From these, I chose the male faces
+  that were smiling. The following are the faces in the dataset morphed to the average face. The average face was
+  found by summing all the $x$ and $y$ coordinates of the correspondences of each image. This summed value was then 
+  divided by the number of images.
+  <br><br> 
+  There seems to be a strange artifact on all the chins of the morphed images. This may be due to the selection of the 
+  annotated points. There are also some images that look strange, such as the last one. I found that this was because 
+  the annotation was not good. The annotations around the mouth area in the last area, especially, do not nearly encompass the mouth.
+</p>
+<br>
+  <div class="row">
+    <div class="column">
+      <img src="front/89b.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/faces_avg/89b.jpg" width="100%"/>
+    </div>
+  </div>
+  <div class="row">
+    <div class="column">
+      <img src="front/31b.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/faces_avg/31b.jpg" width="100%"/>
+    </div>
+  </div>
+  <div class="row">
+    <div class="column">
+      <img src="front/47b.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/faces_avg/47b.jpg" width="100%"/>
+    </div>
+  </div>
+  <div class="row">
+    <div class="column">
+      <img src="front/22b.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/faces_avg/22b.jpg" width="100%"/>
+    </div>
+  </div>
+  <br>
+  <p>
+    The average face was computed by morphing each face to the average face and dividing this morphed face by the 
+    number of images and summing all these images. The following is the average of Brazilian male smiling faces:
+  </p>
+  <img src="output/faces_avg/avg.jpg" width="45%">
+  <br>
+  <p>The following is my face morphed to the average. It doesn't look perfect. This may be because my correspondences 
+    are not too good because they weren't consistent with the ones used in the dataset. I had some trouble even 
+    determining the corresponding points because the ones shown on the dataset site was too blurry to see the labels.
+  </p>
+  <br>
+  <div class="row">
+    <div class="column">
+      <img src="input/kenny3.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/kenny_avg.jpg" width="100%">
+    </div>
+  </div>
+  <br>
+  <p>
+    The following is the average morphed to my face's geometry. My smile is slightly slanted, and this can be seen 
+    in the smile of the morphed image. The eyes of the morphed image seems smaller because mine are smaller than the 
+    average image. 
+  </p>
+  <br>
+  <div class="row">
+    <div class="column">
+      <img src="output/faces_avg/avg.jpg" width="100%"/>
+    </div>
+    <div class="column">
+      <img src="output/avg_kenny.jpg" width="100%">
+    </div>
+  </div>
+
+<h3>Caricatures: Extrapolating From the Mean</h3>
+<p>
+  The caricatures were found by morphing my face to the average face. However, I increase the difference between the 
+  corresponding points by some factor $f$. For example, consider corresponding points $(x, y)$ and $(x', y')$. I find 
+  the new point by calculating $f\cdot[x' - x, y' - y]$. I got the following:
+</p>
+<br> 
+<div class="row">
+  <div class="column">
+    <img src="output/kenny_caricature_1_1.jpg" width="100%"/>
+    <figcaption>$f=1.1$</figcaption>
+  </div>
+  <div class="column">
+    <img src="output/kenny_caricature_1_4.jpg" width="100%">
+    <figcaption>$f=1.4$</figcaption>
+  </div>
+  <div class="column">
+    <img src="output/kenny_caricature_1_7.jpg" width="100%"/>
+    <figcaption>$f=1.7$</figcaption>
+  </div>
+  <div class="column">
+    <img src="output/kenny_caricature_2.jpg" width="100%">
+    <figcaption>$f=2.0$</figcaption>
+  </div>
+  <div class="column">
+    <img src="output/kenny_caricature_2_3.jpg" width="100%">
+    <figcaption>$f=2.3$</figcaption>
+  </div>
+</div>
+<h3>Bells and Whistles</h3>
+<p>I implemented part of a face-morphing music video of the students in cs194-26. The following is my 
+  face morphed into my classmate Prince's face.
+</p>
+<img src="output/5_6.gif">
+<br>
+<p>The following is the class <a href="https://www.youtube.com/watch?v=O2p-U615Rzs&feature=emb_title" target="_blank">video</a> (the embedded video 
+  may not work due to copyrighted music).</p>
+<br>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/O2p-U615Rzs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<h3>Challenges</h3>
+<p>Initially, the conceptual ideas were difficult, but after starting my implementation I felt I had a good 
+  idea of how to implement the rest of the project.
+  The brunt of my challenges came from figuring out how to parallelize my operations rather than using 
+  for loops. I spent a lot of time on Google looking for solutions and functions that would do things I wanted.
+</p>
+
+<h3>Conclusion</h3>
+<p>
+  This was a really fun project. I really enjoyed playing around with the face morphing with different people.
+  I also learned a lot about triangulation and transformations from this project. I also have a better understanding 
+  of how sampling techniques are applied, having used nearest sampling in this project. 
+</p>
+<br>
+
+    
+  <footer></footer>
+</div>
+
+  <style>
+    .row {
+      margin: auto;
+      display: flex;
+      max-width: 60%
+    }
+
+    iframe {
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+
+    .column {
+      flex: 100%;
+      padding: 5px;
+    }
+
+    .post {
+      margin-top: 125px;
+      /* overflow: auto; */
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 3rem
+    }
+
+    .date {
+      margin-bottom: 2rem color: #aaa;
+      font-weight: 320;
+      font-size: 1.4rem;
+      text-align: center;
+      display: block;
+      margin-bottom: 6rem;
+      letter-spacing: 1px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 40px auto;
+      text-decoration: none;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #222;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      width: 50%;
+    }
+
+    code {
+      background-color: #F5F5F5;
+      border-radius: 2px;
+    }
+
+    a {
+      color: #5694f1;
+      text-decoration: none;
+      font-weight: 310;
+      width: 80%;
+      margin: auto;
+    }
+
+    p {
+      line-height: 1.7;
+      color: #666;
+      font-weight: 320;
+      margin-bottom: 20px;
+      letter-spacing: .4px;
+      display: block;
+      margin-block-start: 1em;
+      margin-block-end: 1em;
+      margin-inline-start: 0px;
+      margin-inline-end: 0px;
+      width: 60%;
+      margin: auto;
+    }
+
+    ol li {
+      line-height: 1.7;
+      color: #666;
+      font-weight: 320;
+      margin-bottom: 20px;
+      letter-spacing: .4px;
+      display: block;
+      margin-block-start: 1em;
+      margin-block-end: 1em;
+      margin-inline-start: 0px;
+      margin-inline-end: 0px;
+      width: 60%;
+      margin: auto;
+    }
+
+    .item {
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 1.1rem;
+      background: #ededed;
+      color: #666;
+      letter-spacing: 1px;
+      margin: 3px 1px;
+      text-decoration: none;
+      display: inline-block
+    }
+
+    footer {
+      padding-bottom: 5%;
+    }
+
+    img {
+      padding-top: 2%;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 60vw;
+    }
+
+    #details {
+      font-weight: normal;
+    }
+
+    figcaption {
+      text-align: center;
+      padding-top: 2px;
+      font-style: italic;
+      font-weight: lighter;
+      max-width: 40%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+
+</body>
+
+</html>
